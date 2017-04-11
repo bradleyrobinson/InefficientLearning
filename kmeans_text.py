@@ -1,40 +1,3 @@
-# homework 4
-# goal: k-means clustering on vectors of TF-IDF values,
-#   normalized for every document.
-# exports: 
-#   student - a populated and instantiated ir470.Student object
-#   Clustering - a class which encapsulates the necessary logic for
-#       clustering a set of documents by tf-idf 
-
-
-# ########################################
-# first, create a student object
-# ########################################
-
-import ir4320
-MY_NAME = "Bradley Robinson"
-MY_ANUM  = 989743 # put your UID here
-MY_EMAIL = "bradley.s.robinson12@gmail.com"
-
-# the COLLABORATORS list contains tuples of 2 items, the name of the helper
-# and their contribution to your homework
-COLLABORATORS = [ 
-    ]
-
-# Set the I_AGREE_HONOR_CODE to True if you agree with the following statement
-# "An Aggie does not lie, cheat or steal, or tolerate those who do."
-I_AGREE_HONOR_CODE = True
-
-# this defines the student object
-student = ir4320.Student(
-    MY_NAME,
-    MY_ANUM,
-    MY_EMAIL,
-    COLLABORATORS,
-    I_AGREE_HONOR_CODE
-    )
-
-
 # ########################################
 # now, write some code
 # ########################################
@@ -391,14 +354,14 @@ class Clustering(object):
 
 # now, we'll define our main function which actually starts the clusterer
 def main(args):
-    print(student)
+    # Requires two folders to test directly: test10/ and test50/
     clustering = Clustering()    
-    print("test 10 documents")
+    """print("test 10 documents")
     print(clustering.consume_dir('test10/', 5))
     print("test 50 documents")
-    print(clustering.consume_dir('test50/', 5))
-# this little helper will call main() if this file is executed from the command
-# line but not call main() if this file is included as a module
+    print(clustering.consume_dir('test50/', 5))"""
+    
+
 if __name__ == "__main__":
     import sys
     main(sys.argv)
