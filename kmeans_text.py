@@ -44,8 +44,7 @@ import re
 import random
 from time import time
 from collections import Counter
-# TODO: Remove this after testing
-from sklearn.cluster import KMeans
+import os
 
 
 # Used for testing
@@ -54,13 +53,14 @@ def print_time(time0, time1, function_name):
     print("{function}: {diff}".format(function=function_name, diff=diff))
     
     
-# Kmeans object takes a tf_idf table, and then uses it to compute kmeans
-
-class KMeans_Text(object):
-    def __init__(self, tf_idf, x_idx, y_idx, shape):
+class KMeansText(object):
+    # Kmeans object takes a tf_idf table, and then uses it to compute kmeans
+    # self.tf_idf - tf_idf table
+    # self.shape - length of x and y axis
+    # self.centroids - Holds centroids for each cluster
+    # self.cluster_differences - Includes differences 
+    def __init__(self, tf_idf, shape):
         self.tf_idf = tf_idf
-        self.x_idx = x_idx
-        self.y_idx = y_idx
         self.shape = shape
         self.centroids = {}
         self.clusters = {}
@@ -104,7 +104,6 @@ class KMeans_Text(object):
     
     
     def check_changes(self):
-        # TODO: No need for i or cluster, this just takes a look at stuff
         if len(self.rss_scores)  > 1:
             self.changes = self.rss_scores[-2] - self.rss_scores[-1]
         else:
@@ -146,7 +145,6 @@ class KMeans_Text(object):
             
             
     def calculate_centroids(self, data):
-        # TODO: Computes the average point in all the columns
         cols = self.shape[1]
         centroid = [np.mean(data[:,i]) for i in range(cols)]
         return centroid
@@ -159,44 +157,64 @@ class KMeans_Text(object):
             cluster_values = self.tf_idf[rows]
             self.centroids[cluster] = self.calculate_centroids(cluster_values)
         
+        
     def fit(self, k):
         self.initialize_clusters(k)
         iterations = 0
-        # tODO: Change this
         no_zero_changes = 0
-        while no_zero_changes <= 3 and iterations < 30:
+        while no_zero_changes < 1 and iterations < 30:
             # TODO: Labeling clusters takes more time, find a way to optimize
             self.label_clusters()
             self.recompute_centroids()
-            # TODO: Is this the right place for this?
             self.check_changes()
+            # print("iteration: {}, rss: {}".format(iterations, self.changes))
             iterations += 1
-            if self.changes == 0:
+            if self.changes < 1:
                 no_zero_changes += 1
         self.rss_final = self.rss_scores[-1]
         
         
 
-# Our Clustering object will contain all logic necessary to crawl a local
-# directory of text files, tokenize them, calculate tf-idf vectors on their
-# contents then cluster them according to k-means. The Clustering class should
-# select r random restarts to ensure getting good clusters and then use RSS, an
-# internal metric, to calculate best clusters.  The details are left to the
-# student.
 
+# Clustering algorithm for documents. Reads all documents in a file path
+# Creates a tf_idf vector, and computes kmeans.
 class Clustering(object):
-    # hint: create something here to hold your dictionary and tf-idf for every
-    #   term in every document
+    # Variables:
+    #
+    # self.term_index, dictionary that includes each term and the documents
+    # that include them.
+    # 
+    # self.tf_idf, numpy array that stores the weighted tf_idf of terms in docs
+    #
+    # self.x_idx, self.y_idx, dictionary with x or y name (document, term) and
+    # their index in self.tf_idf
+    #
+    # self.inverse_x, dictionary that is the inverse of self.x_idx
+    #
+    # self.clusters, List that stores Kmeans_Text objects in order to compare
+    # results.
+    #
+    # self.labels, List that stores the cluster label for each document, in 
+    # order
+    #
+    # self.term_pos, Used to help index terms in self.y_idx
     def __init__(self):
         self.term_index = {}
         self.tf_idf = np.array([])
         self.x_idx = {}
         self.y_idx = {}
+        self.inverse_x = {}
         # An array of cluster objects
         self.clusters = []
+        self.labels = []
         self.term_pos = 0
         
-    
+    # initialize ( )
+    # Since the assignment uses the same object, resets values to ensure no
+    # values bleed over
+    # Requirements: None
+    # Parameters: None
+    # Returns: None
     def initialize(self):
         self.term_index = {}
         self.tf_idf = np.array([])
@@ -227,7 +245,13 @@ class Clustering(object):
         return tokens
         
     
-    
+    # index_terms ( terms, doc )
+    # purpose: Add each term that occurs in each document to the term_index
+    # Preconditions: Terms are tokenized
+    # Returns None
+    # Parameters: 
+    #   terms - tokenized list of terms
+    #   doc - document name that contains the terms
     def index_terms(self, terms, doc):
         for t in terms:
             if t not in self.term_index:
@@ -239,11 +263,14 @@ class Clustering(object):
                 self.term_index[t].append(doc)
     
     
+    # create_term_index ( )
+    # Purpose: Create a tf_idf vector
+    # Preconditions: self.index_files has been called
+    # Returns: None
+    # Parameters: None
     def create_term_index(self):
         # Create the array
         self.tf_idf = np.zeros((len(self.x_idx), self.term_pos))
-        # Go through each term, find the frequency of each document, then modify
-        # the number to have the tf_idf
         for term, doc_list in self.term_index.items():
             y_pos = self.y_idx[term]
             doc_counter = Counter(doc_list)
@@ -256,23 +283,26 @@ class Clustering(object):
                 self.tf_idf[x_pos, y_pos] = tf*idf
                 
     
-    # Will test this implementation against sklearn to see if things are 
-    # generally accurate
+    # test_kmeans ( k )
+    # purpose: compares this kmeans algorithm with the sklearn implementation
+    # preconditions: the terms have been indexed
+    # returns: in-order labels of the cluster names each doc belongs to
+    # parameters: k number of clusters to make
     def test_kmeans(self, k):
+        from sklearn.cluster import KMeans
         k_test = KMeans(n_clusters=k)
         k_test.fit(self.tf_idf)
-        print(k_test.labels_)
-        # TODO:
-        pass
+        return k_test.labels_
+    
     
     # kmeans( k )
     # purpose: Once the directory and tf_idf has been initialized, actually do
     # the stuff
     # preconditions: consume_dir has been called.
-    def kmeans(self, k, restarts=5):
-        # TODO: create KMeans objects for each restart
+    # returns: KMeansText object with the lowest rss score
+    def kmeans(self, k, restarts=8):
         for i in range(restarts):
-            kmeans = KMeans_Text(self.tf_idf, self.x_idx, self.y_idx, self.shape)
+            kmeans = KMeansText(self.tf_idf, self.shape)
             kmeans.fit(k)
             self.clusters.append(kmeans)
         
@@ -284,10 +314,41 @@ class Clustering(object):
             if not min_rss or rss < min_rss:
                 min_rss = rss
                 min_index = i
-                
-        self.test_kmeans(k)
-        return self.clusters[min_index]
         
+        # To compare the kmeans to popular library sklearn kmeans, uncomment
+        # self.test_kmeans(k)
+        return self.clusters[min_index]
+    
+    
+    # prepare ( )
+    # purpose: Initializes some variables based on the term index
+    # preconditions: self.index_files has been called successfully
+    # returns: None
+    # parameters: None
+    def prepare(self):
+        self.shape = (len(self.x_idx), len(self.y_idx))
+        self.labels = np.zeros(self.shape[0], dtype=np.int)
+        self.inverse_x = {y: x for x, y in self.x_idx.items()}
+        self.create_term_index()
+        
+        
+    # index_files ( path )
+    # purpose: goes through files in a given path and indexes the terms
+    # preconditions: self.initialize has been called
+    # returns: None
+    # parameters: path - a string for the location of a folder to be indexed
+    def index_files(self, path):
+        dir_files = glob.glob(path + "*")
+        self.N = len(dir_files)
+        for i in range(self.N):
+            file = dir_files[i]
+            name = os.path.split(file)[-1]
+            self.x_idx[name] = i
+            contents = open(file, 'r')
+            terms = self.tokenize(contents.read())
+            self.index_terms(terms, name)
+            
+            
     # consume_dir( path, k )
     # purpose: accept a path to a directory of files which need to be clustered
     # preconditions: none
@@ -305,20 +366,19 @@ class Clustering(object):
     #   k - number of clusters to generate
     def consume_dir(self, path, k):
         self.initialize()
-        dir_files = glob.glob(path + "*")
-        self.N = len(dir_files)
-        for i in range(self.N):
-            file = dir_files[i]
-            self.x_idx[file] = i
-            contents = open(file, 'r')
-            terms = self.tokenize(contents.read())
-            self.index_terms(terms, file)
-        self.shape = (len(self.x_idx), len(self.y_idx))
-        self.create_term_index()
-        result = self.kmeans(k)
-        #self.print_tf()
-        # TODO: Something is wrong here, we don't want to just get two labels:
-        return result.labels
+        self.index_files(path)
+        self.prepare()
+        result = self.kmeans(k).labels
+        # Find the correct labels
+        simple_labels = []
+        for cluster, doc in result.items():
+            c_labels = []
+            for d in doc:
+                self.labels[d] = cluster
+                c_labels.append(self.inverse_x[d])
+            simple_labels.append(c_labels)
+        # Print out the labels as expected:
+        return simple_labels
     
     
     def print_tf(self):
@@ -332,11 +392,7 @@ class Clustering(object):
 # now, we'll define our main function which actually starts the clusterer
 def main(args):
     print(student)
-    clustering = Clustering()
-    # TODO: Remove this
-    print('test 5 documents')
-    print(clustering.consume_dir('test5/', 2))
-    
+    clustering = Clustering()    
     print("test 10 documents")
     print(clustering.consume_dir('test10/', 5))
     print("test 50 documents")
