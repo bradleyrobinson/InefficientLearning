@@ -1,6 +1,11 @@
-# ########################################
-# now, write some code
-# ########################################
+# TODO: Update to use Google Python Code guidelines.
+# TODO: Separate classes
+"""
+By Bradley Robinson
+
+Originally coded for coursework, though I will be improving the code a little bit over time.
+"""
+
 import glob
 import numpy as np
 import re
@@ -17,13 +22,24 @@ def print_time(time0, time1, function_name):
     
     
 class KMeansText(object):
-    # Kmeans object takes a tf_idf table, and then uses it to compute kmeans
+    """
+    KMeansText object takes a tf_idf table and uses that to then compute k-means.
+    """
     # self.tf_idf - tf_idf table
     # self.shape - length of x and y axis
     # self.centroids - Holds centroids for each cluster
     # self.cluster_differences - Includes differences 
     def __init__(self, tf_idf, shape):
+        """
+        Initializer.
+
+        Parameters:
+            tf_idf: np.array, a term-frequency idf table representing text data. This isn't strict: anything numerical
+             should work.
+            shape: The size of tf-idf table
+        """
         self.tf_idf = tf_idf
+        # TODO: No need for this
         self.shape = shape
         self.centroids = {}
         self.clusters = {}
@@ -35,23 +51,38 @@ class KMeansText(object):
         self.changes = None
     
     def rss(self):
+        """
+        Calculates the mean squared difference as a way to compute internal validity of the clusteringing
+
+        Return:
+            None
+        """
         rss_score = 0
         for k, rows in self.cluster_differences.items():
             rss_score += sum(rows)
         self.rss_scores.append(rss_score)
-        
-        
+
     def get_rand_clusters(self):
+        """
+        Used to get a random index to initialize the clustering
+
+        Returns:
+            integer: an index of the cluster.
+        """
         x = random.randint(0, self.shape[0]-1)
         return x
-                
-    
+
     def initialize_clusters(self, k):
-        # Picks random points as centroids
+        """
+
+        Parameters:
+            k: int, the number of clusters to initialize
+
+        Returns:
+             None
+        """
         self.centroids = {}
         centroid_lst= []
-        # Set it to something other than zero, otherwise the clustering will
-        # end too soon
         self.changes = 1
         for i in range(k):
             x = self.get_rand_clusters()
@@ -59,21 +90,41 @@ class KMeansText(object):
                 x = self.get_rand_clusters()
             self.centroids[i] = self.tf_idf[x]
             centroid_lst.append(x)
-            
-    
+
     def euclidean_distance(self, x1, x2):
+        """
+        While there is an implementation in numpy that undoubtedly performs at least as well, I just wanted to try my
+        hand at creating a function to compute distance
+
+        Parameters:
+            x1: array-like structure, row to be compared with
+            x2: array-like structure, other row to be compared with
+        :return:
+        """
         distance = (sum([(a-b)**2 for a, b in zip(x1, x2)])**(1/2))
         return distance
-    
-    
+
     def check_changes(self):
+        """
+        Computes the change in internal validity between iterations of the k-means clustering to check whether there has
+        been a change in distance in clustering.
+        """
         if len(self.rss_scores)  > 1:
             self.changes = self.rss_scores[-2] - self.rss_scores[-1]
         else:
             self.changes = self.rss_scores[0]
-    
-    
+
     def compare_labels(self, labels, clusters, cluster, i, row, squared_error):
+        """
+
+        :param labels:
+        :param clusters:
+        :param cluster:
+        :param i:
+        :param row:
+        :param squared_error:
+        :return:
+        """
         if cluster[1] in labels:
             labels[cluster[1]].append(i)
             clusters[cluster[1]].append(row)
@@ -87,6 +138,11 @@ class KMeansText(object):
     
     
     def label_clusters(self):
+        # TODO: Finish documentation
+        """
+
+        :return:
+        """
         # We need to clear out the old for the new, appending is a bad idea
         labels = {}
         clusters = {}
@@ -105,22 +161,19 @@ class KMeansText(object):
         self.clusters = clusters
         self.cluster_differences = squared_error
         self.rss()
-            
-            
+
     def calculate_centroids(self, data):
         cols = self.shape[1]
         centroid = [np.mean(data[:,i]) for i in range(cols)]
         return centroid
-        
-    
+
     def recompute_centroids(self):
         # Iterates through all of the values of each cluster and recomputes the
         # centroid value
         for cluster, rows in self.labels.items():
             cluster_values = self.tf_idf[rows]
             self.centroids[cluster] = self.calculate_centroids(cluster_values)
-        
-        
+
     def fit(self, k):
         self.initialize_clusters(k)
         iterations = 0
@@ -135,8 +188,6 @@ class KMeansText(object):
             if self.changes < 1:
                 no_zero_changes += 1
         self.rss_final = self.rss_scores[-1]
-        
-        
 
 
 # Clustering algorithm for documents. Reads all documents in a file path
@@ -327,6 +378,7 @@ class Clustering(object):
     # parameters:
     #   path - string path to directory of documents to cluster
     #   k - number of clusters to generate
+    # TODO: Separate this out so it makes more sense
     def consume_dir(self, path, k):
         self.initialize()
         self.index_files(path)
